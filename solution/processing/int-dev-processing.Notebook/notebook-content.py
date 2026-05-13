@@ -9,39 +9,26 @@
 # META   "dependencies": {}
 # META }
 
-# CELL ********************
-
-# Welcome to your new notebook
-# Type here in the cell editor to add code!
-
-
-# METADATA ********************
-
-# META {
-# META   "language": "python",
-# META   "language_group": "synapse_pyspark"
-# META }
-
 # MARKDOWN ********************
 
-# ## PRJ003 🔶 INT Project (Sprint 3): Getting data into Fabric 
-# # 
-# # > The code in this notebook is written as part of Week 3 of the Intermediate Project, in [Fabric Dojo](https://skool.com/fabricdojo/about). The intention is first to get the functionality working, in a way that's understandable for the community. Then, in future weeks, we will layer in things like testing, error-handling, more defensive coding patterns to make our extraction more robust.
-# # 
-# #  Data extraction strategy
-# # In this notebook we will: 
-# # - Step 0: Solution Step Up - importing packages, helper functions, defining metadata 
-# # 
-# # - Step 1: get AKV secret from Azure Key Vault (secure storage of Google Developers project key for querying YouTube Data V3 API)
-# # - Step 2: get overall channel information for a YouTube channel, and write it to a Lakehouse Files area (our RAW layer)
-# # - Step 3: get all videos on a channel (and write to RAW layer) 
-# # - Step 4: get statistics for all videos on a channel (and write to RAW layer) 
-# # 
-# # This notebook is dynamic: it can be run in DEV, TEST and PROD, thanks to the use of Variable libraries. 
-# # 
-# # #### Step 0: Solution Set up
-# # 
-# # Import packages:
+# # PRJ003 🔶 INT Project (Sprint 3): Getting data into Fabric 
+# 
+# > The code in this notebook is written as part of Week 3 of the Intermediate Project, in [Fabric Dojo](https://skool.com/fabricdojo/about). The intention is first to get the functionality working, in a way that's understandable for the community. Then, in future weeks, we will layer in things like testing, error-handling, more defensive coding patterns to make our extraction more robust.
+# 
+#  Data extraction strategy
+# In this notebook we will: 
+# - Step 0: Solution Step Up - importing packages, helper functions, defining metadata 
+# 
+# - Step 1: get AKV secret from Azure Key Vault (secure storage of Google Developers project key for querying YouTube Data V3 API)
+# - Step 2: get overall channel information for a YouTube channel, and write it to a Lakehouse Files area (our RAW layer)
+# - Step 3: get all videos on a channel (and write to RAW layer) 
+# - Step 4: get statistics for all videos on a channel (and write to RAW layer) 
+# 
+# This notebook is dynamic: it can be run in DEV, TEST and PROD, thanks to the use of Variable libraries. 
+# 
+# #### Step 0: Solution Set up
+# 
+# Import packages:
 
 
 # CELL ********************
@@ -61,11 +48,11 @@ import json
 
 # MARKDOWN ********************
 
-# # In this solution, we're using Variable Libraries for store different variable values that we need in different deployment workspaces (DEV, TEST, PROD). 
-# # 
-# # Let's get the ABFS path for the Lakehouse we are going to write our RAW data to... 
-# # 
-# # This will vary depending on the current deployment stage. 
+# In this solution, we're using Variable Libraries for store different variable values that we need in different deployment workspaces (DEV, TEST, PROD). 
+# 
+# Let's get the ABFS path for the Lakehouse we are going to write our RAW data to... 
+# 
+# This will vary depending on the current deployment stage. 
 
 # CELL ********************
 
@@ -80,7 +67,7 @@ variables = notebookutils.variableLibrary.getLibrary("vl-int-variables")
 
 # MARKDOWN ********************
 
-# # Define some helper functions (that we'll use across multiple steps): 
+# Define some helper functions (that we'll use across multiple steps): 
 
 # CELL ********************
 
@@ -158,8 +145,8 @@ def write_json_to_location(json_data, location, id):
 
 # MARKDOWN ********************
 
-# #### Defining some metadata for scalability
-# # For now, we will just use a Python object to store the metadata, but in later weeks, we will store this metadata (& add to it!)
+# # Defining some metadata for scalability
+# For now, we will just use a Python object to store the metadata, but in later weeks, we will store this metadata (& add to it!)
 
 # CELL ********************
 
@@ -227,6 +214,121 @@ md = METADATA.get(id)
 channel_json_data = get_data_from_endpoint(md["base_url"], md["base_params"])
 
 write_json_to_location(channel_json_data, md["write_location"], id)
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# MARKDOWN ********************
+
+# #### Step 3: Get Playlist Items (all videos on the channel)
+
+# CELL ********************
+
+def extract_uploads_playlist_id(channel_json_data):
+    return channel_json_data.get("items")[0].get("contentDetails").get("relatedPlaylists").get("uploads")
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
+playlist_id = extract_uploads_playlist_id(channel_json_data)
+id = 'yt-playlistItems'
+md = METADATA.get(id)
+additional_params = f"&playlistId={playlist_id}"
+playlist_json_data = get_data_with_pagination(md["base_url"],md["base_params"], additional_params)
+write_json_to_location(playlist_json_data, md["write_location"],id)
+
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# MARKDOWN ********************
+
+# #### Step 4: Get Video Statistics for all videos
+# # 
+# First, we'll define a few helper functions for this extraction.
+
+# CELL ********************
+
+def extract_video_ids(playlist_json): 
+    """Input: JSON from previous step (raw playlist items)
+       Output: list of video_ids
+    """
+    video_ids = [] 
+    for item in playlist_json:
+        # Primary location: contentDetails.videoId
+        video_id = item.get('contentDetails', {}).get('videoId')
+        
+        # Fallback: snippet.resourceId.videoId
+        if not video_id:
+            video_id = (item.get('snippet', {})
+                           .get('resourceId', {})
+                           .get('videoId'))
+        
+        if video_id:
+            video_ids.append(video_id)
+
+    return video_ids
+
+def get_video_stats_batched(metadata, video_ids):
+    """Batches long list of video_ids into smaller batches to get under the 
+    50 id maximum set by the API
+
+    """
+
+    all_videos = []
+    batch_size = 40
+    md = metadata 
+    
+    # Split into batches of {batch_size} 
+    for i in range(0, len(video_ids), batch_size):
+        batch = video_ids[i:i+batch_size]
+        batch_count = (i // batch_size) + 1
+        total_batches = (len(video_ids) + batch_size - 1) // batch_size
+        
+        print(f"  Processing batch {batch_count}/{total_batches}: {len(batch)} videos...")
+        
+        # Convert list to comma-separated string
+        additional_params = f"&id={','.join(batch)}"
+
+        results = get_data_from_endpoint(md["base_url"], md["base_params"], additional_params)
+                
+        all_videos.extend(results["items"])
+    
+    print(f"Extracted stats for {len(all_videos)} videos")
+    return  all_videos
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
+id = 'yt-videos'
+
+md = METADATA.get(id)
+
+video_ids = extract_video_ids(playlist_json_data)
+
+video_json_data = get_video_stats_batched(md, video_ids)
+
+write_json_to_location(video_json_data, md["write_location"], id)
 
 # METADATA ********************
 
