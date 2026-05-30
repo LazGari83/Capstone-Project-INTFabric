@@ -11,11 +11,11 @@
 
 # MARKDOWN ********************
 
-# # PRJ003 🔶 INT Project (Sprint 3): Getting data into Fabric 
-# 
-# > The code in this notebook is written as part of Week 3 of the Intermediate Project, in [Fabric Dojo](https://skool.com/fabricdojo/about). The intention is first to get the functionality working, in a way that's understandable for the community. Then, in future weeks, we will layer in things like testing, error-handling, more defensive coding patterns to make our extraction more robust.
-# 
-#  Data extraction strategy
+# #### PRJ003 🔶 INT Project (Sprint 3): Getting data into Fabric 
+
+# MARKDOWN ********************
+
+#  # Data extraction strategy
 # In this notebook we will: 
 # - Step 0: Solution Step Up - importing packages, helper functions, defining metadata 
 # 
@@ -28,8 +28,7 @@
 # 
 # #### Step 0: Solution Set up
 # 
-# Import packages:
-
+# Import packages: 
 
 # CELL ********************
 
@@ -93,21 +92,23 @@ def get_data_with_pagination(BASE_URL, base_params, additional_params = ""):
     while True:
         if next_page_token:
             additional_params_plus_token = additional_params + f'&pageToken={next_page_token}'
-        else:
+        else: 
             additional_params_plus_token = additional_params
-
+        
         json_data = get_data_from_endpoint(BASE_URL, base_params, additional_params_plus_token)
 
-        json_data_items = json_data.get("items",{})
-
+        json_data_items = json_data.get("items", {})
+        
         all_items.extend(json_data_items)
 
         next_page_token = json_data.get('nextPageToken', None)
-
+                
         if not next_page_token:
             break
-    print("Total items: ",len(all_items))
+
+    print("Total items: ", len(all_items))
     return all_items
+
 
 def construct_abfs_write_path(write_location): 
     """Constructs an ABFS path to write RAW JSON files into a Lakehouse
@@ -135,7 +136,6 @@ def write_json_to_location(json_data, location, id):
 
     notebookutils.fs.put(abfs_path, json_string, overwrite=True)
 
-
 # METADATA ********************
 
 # META {
@@ -145,7 +145,7 @@ def write_json_to_location(json_data, location, id):
 
 # MARKDOWN ********************
 
-# # Defining some metadata for scalability
+# #### Defining some metadata for scalability
 # For now, we will just use a Python object to store the metadata, but in later weeks, we will store this metadata (& add to it!)
 
 # CELL ********************
@@ -155,18 +155,18 @@ METADATA = {
         "base_url": "https://www.googleapis.com/youtube/v3/channels", 
         "base_params": "part=snippet,statistics,contentDetails&id=UCrvoIYkzS-RvCEb0x7wfmwQ",  
         "write_location": "youtube_data_v3/channels/"
-    },
-    "yt-playlistItems":{
+  
+    }, 
+    "yt-playlistItems": {
         "base_url": "https://www.googleapis.com/youtube/v3/playlistItems", 
         "base_params": "part=snippet&maxResults=50", 
-        "write_location": "youtube_data_v3/playlistItems/"        
+        "write_location": "youtube_data_v3/playlistItems/"
     },
     "yt-videos": {
         "base_url": "https://www.googleapis.com/youtube/v3/videos", 
         "base_params": "part=statistics&maxresults=50", 
         "write_location": "youtube_data_v3/videos/"
     }
-
 }
 
 # METADATA ********************
@@ -182,12 +182,12 @@ METADATA = {
 
 # CELL ********************
 
-def get_secret_from_akv()-> str:
+def get_secret_from_akv()-> str: 
     """Get API key from Azure Key Vault"""
 
-    akv_name= 'https://cs-int-restapi-keys.vault.azure.net/'
-    secret_name= 'data-v3-api-key'
-
+    akv_name= 'https://cs-int-restapi-keys.vault.azure.net/' 
+    secret_name = 'data-V3-api-key'
+    
     api_key = notebookutils.credentials.getSecret(akv_name,secret_name)
 
     return api_key
@@ -207,7 +207,7 @@ api_key = get_secret_from_akv()
 
 # CELL ********************
 
-id = 'yt-channels'
+id = "yt-channels"
 
 md = METADATA.get(id)
 
@@ -228,7 +228,7 @@ write_json_to_location(channel_json_data, md["write_location"], id)
 
 # CELL ********************
 
-def extract_uploads_playlist_id(channel_json_data):
+def extract_uploads_playlist_id(channel_json_data): 
     return channel_json_data.get("items")[0].get("contentDetails").get("relatedPlaylists").get("uploads")
 
 # METADATA ********************
@@ -240,13 +240,17 @@ def extract_uploads_playlist_id(channel_json_data):
 
 # CELL ********************
 
-playlist_id = extract_uploads_playlist_id(channel_json_data)
-id = 'yt-playlistItems'
-md = METADATA.get(id)
-additional_params = f"&playlistId={playlist_id}"
-playlist_json_data = get_data_with_pagination(md["base_url"],md["base_params"], additional_params)
-write_json_to_location(playlist_json_data, md["write_location"],id)
+playlist_id = extract_uploads_playlist_id(channel_json_data) 
 
+id = 'yt-playlistItems'
+
+md = METADATA.get(id)
+
+additional_params = f"&playlistId={playlist_id}"
+
+playlist_json_data = get_data_with_pagination(md["base_url"], md["base_params"], additional_params)
+
+write_json_to_location(playlist_json_data, md["write_location"], id)
 
 # METADATA ********************
 
@@ -257,9 +261,7 @@ write_json_to_location(playlist_json_data, md["write_location"],id)
 
 # MARKDOWN ********************
 
-# #### Step 4: Get Video Statistics for all videos
-# # 
-# First, we'll define a few helper functions for this extraction.
+# ### Step 4: Get Video Statistics for all videos
 
 # CELL ********************
 

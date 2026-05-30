@@ -1,11 +1,11 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
   "metadata": {
-    "type": "VariableLibrary",
-    "displayName": "vl-int-variables"
+    "type": "Notebook",
+    "displayName": "int-raw-youtube-api"
   },
   "config": {
     "version": "2.0",
-    "logicalId": "2f4cc1d6-4ef8-8659-4e6d-496a31850b53"
+    "logicalId": "bad4eb43-ca04-b80c-48e5-bab9a554a98c"
   }
 }
