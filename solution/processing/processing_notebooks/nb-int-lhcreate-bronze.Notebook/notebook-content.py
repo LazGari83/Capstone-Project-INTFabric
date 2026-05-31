@@ -48,7 +48,7 @@ BRONZE_LH_SCHEMAS_TO_CREATE = ["youtube"]
 for schema_name in BRONZE_LH_SCHEMAS_TO_CREATE:
 
     # create a dynmamic Spark SQL script, reading from the Variable Library variables, and the BRONZE_LH_SCHEMAS_TO_CREATE metadata
-    spark.sql(f"CREATE SCHEMA IF NOT EXISTS '{lh_workspace_name}'.'{bronze_lh_name}'.'{schema_name}'")
+    spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{lh_workspace_name}`.`{bronze_lh_name}`.`{schema_name}`")
 
 
 # METADATA ********************
@@ -97,7 +97,7 @@ for table, ddl in BRONZE_TABLE_SCHEMAS.items():
 
     # create a dynmamic Spark SQL script, reading from the Variable Library variables, and the BRONZE_TABLE_SCHEMAS metadata
     # we use IF NOT EXISTS to avoid overwrite - all updates will be done through migrations
-    create_script = f"CREATE TABLE ID NOT EXISTS '{lh_workspace_name}'.'{bronze_lh_name}'.{table} ({ddl});"
+    create_script = f"CREATE TABLE IF NOT EXISTS `{lh_workspace_name}`.`{bronze_lh_name}`.{table} ({ddl});"
 
     # run the SQL statement to create the table
     spark.sql(create_script)
