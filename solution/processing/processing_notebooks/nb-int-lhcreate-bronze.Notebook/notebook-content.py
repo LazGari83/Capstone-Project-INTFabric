@@ -24,7 +24,7 @@
 
 import notebookutils
 
-variables = notebookutils.variableLibrary.getLibrary("vl-csint-variables")
+variables = notebookutils.variableLibrary.getLibrary("vl-int-variables")
 
 lh_workspace_name = variables.LH_WORKSPACE_NAME
 
